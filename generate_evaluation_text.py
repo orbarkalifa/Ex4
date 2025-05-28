@@ -1,46 +1,109 @@
 import json
 import os
 
-ALL_ANSWERS_FILE = "all_answers.txt"
-GROUND_TRUTH_FILE = "gt.txt" # Corrected path to root directory
+ALL_ANSWERS_FILE = os.path.join("pics_and_questions", "all_answers.txt") # Updated path
+GROUND_TRUTH_FILE = "gt.txt" # Assuming gt.txt is still in root, or user will clarify
 OUTPUT_TEXT_FILE = "evaluation_input_for_chatgpt.txt"
 
-def load_answers(filepath):
-    """Loads answers from a JSON lines file."""
+
+def load_answers(filepath, is_json_lines_format=True):
+    """Loads answers from a file.
+    Can handle JSON lines format or the custom 3-line text format.
+    """
     answers = {}
     if not os.path.exists(filepath):
         print(f"Warning: File not found at {filepath}")
         return answers
     
     with open(filepath, 'r', encoding='utf-8') as f:
-        for line_num, line in enumerate(f):
-            try:
-                data = json.loads(line.strip())
-                # Create a unique key for matching
-                # Normalize to lower case and strip whitespace for more robust matching
-                picture_key = data.get("picture", "").strip().lower()
-                question_key = data.get("question", "").strip().lower()
-                
-                if not picture_key or not question_key:
-                    print(f"Warning: Missing picture or question in {filepath} at line {line_num + 1}. Skipping.")
-                    continue
-                
-                key = (picture_key, question_key)
-                if key in answers:
-                    print(f"Warning: Duplicate key {key} found in {filepath}. Overwriting previous entry.")
-                answers[key] = data.get("answer", "").strip()
-            except json.JSONDecodeError:
-                print(f"Warning: Could not decode JSON from line {line_num + 1} in {filepath}. Skipping.")
-            except AttributeError as e:
-                print(f"Warning: Problem accessing data in {filepath} at line {line_num + 1}: {e}. Skipping. Line content: {line.strip()}")
+        if is_json_lines_format:
+            # Handles gt.txt (assumed to be JSON lines)
+            for line_num, line in enumerate(f):
+                try:
+                    data = json.loads(line.strip())
+                    picture_key = data.get("picture", "").strip().lower()
+                    question_key = data.get("question", "").strip().lower()
+                    
+                    if not picture_key or not question_key:
+                        print(f"Warning: Missing picture or question in {filepath} (JSON line {line_num + 1}). Skipping.")
+                        continue
+                    
+                    key = (picture_key, question_key)
+                    if key in answers:
+                        print(f"Warning: Duplicate key {key} found in {filepath} (JSON). Overwriting.")
+                    answers[key] = data.get("answer", "").strip()
+                except json.JSONDecodeError:
+                    print(f"Warning: Could not decode JSON from line {line_num + 1} in {filepath}. Skipping.")
+                except AttributeError as e:
+                    print(f"Warning: Problem accessing JSON data in {filepath} at line {line_num + 1}: {e}. Skipping.")
+        else:
+            # Handles the custom 3-line format for all_answers.txt
+            lines = f.readlines()
+            i = 0
+            line_num_base = 0
+            while i < len(lines):
+                if i + 2 >= len(lines): # Need at least 3 lines for a record
+                    if any(line.strip() for line in lines[i:]): # Check if remaining lines are not just empty
+                         print(f"Warning: Incomplete record at the end of {filepath} starting near line {line_num_base + i + 1}. Expected 3 lines per record.")
+                    break
+
+                picture_line = lines[i].strip()
+                question_line = lines[i+1].strip()
+                answer_line = lines[i+2].strip()
+                line_num_base += (4 if i + 3 < len(lines) and not lines[i+3].strip() else 3)
+
+
+                try:
+                    if not picture_line.startswith("picture:") or \
+                       not question_line.startswith("question:") or \
+                       not answer_line.startswith("answer:"):
+                        print(f"Warning: Malformed record in {filepath} around lines {line_num_base + i + 1}-{line_num_base + i + 3}. Skipping record.")
+                        i += 1 # Try to resync by moving one line forward
+                        continue
+
+                    picture_val = picture_line.split(":", 1)[1].strip().strip('"')
+                    question_val = question_line.split(":", 1)[1].strip().strip('"')
+                    answer_val = answer_line.split(":", 1)[1].strip().strip('"')
+
+                    picture_key = picture_val.lower()
+                    question_key = question_val.lower()
+
+                    if not picture_key or not question_key:
+                        print(f"Warning: Missing picture or question value in {filepath} around lines {line_num_base + i + 1}-{line_num_base + i + 3}. Skipping.")
+                        i += 4 # Assuming 3 lines + 1 blank
+                        continue
+                        
+                    key = (picture_key, question_key)
+                    if key in answers:
+                        print(f"Warning: Duplicate key {key} found in {filepath} (custom format). Overwriting.")
+                    answers[key] = answer_val
+                    
+                    # Expecting a blank line separator, or end of file
+                    if i + 3 < len(lines) and lines[i+3].strip() == "":
+                        i += 4 # Move to the next record (3 lines + 1 blank)
+                    elif i + 3 >= len(lines): # End of file after answer
+                        i += 3
+                    else: # Lines are contiguous without blank line, or unexpected content
+                        print(f"Warning: Record in {filepath} around lines {line_num_base + i + 1}-{line_num_base + i + 3} not followed by a blank line or EOF. Assuming 3 lines per record.")
+                        i += 3
+
+
+                except IndexError:
+                     print(f"Warning: Error parsing record in {filepath} around lines {line_num_base + i + 1}-{line_num_base + i + 3} due to unexpected format. Skipping record.")
+                     i += 1 # Try to resync
+                except Exception as e:
+                    print(f"Warning: An unexpected error occurred processing record in {filepath} around lines {line_num_base + i + 1}-{line_num_base + i + 3}: {e}. Skipping record.")
+                    i += 1 # Try to resync
     return answers
 
 def main():
-    model_answers_data = load_answers(ALL_ANSWERS_FILE)
-    ground_truth_data = load_answers(GROUND_TRUTH_FILE)
+    # Load model answers using the new custom format parser
+    model_answers_data = load_answers(ALL_ANSWERS_FILE, is_json_lines_format=False)
+    # Ground truth is still assumed to be JSON lines
+    ground_truth_data = load_answers(GROUND_TRUTH_FILE, is_json_lines_format=True)
 
     if not model_answers_data:
-        print(f"No data loaded from {ALL_ANSWERS_FILE}. Cannot generate evaluation text.")
+        print(f"No data successfully loaded from {ALL_ANSWERS_FILE}. Cannot generate evaluation text.")
         return
     if not ground_truth_data:
         print(f"No data loaded from {GROUND_TRUTH_FILE}. Evaluation text will only contain model answers.")

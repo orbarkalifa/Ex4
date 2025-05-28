@@ -2,84 +2,141 @@ import subprocess
 import os
 import json
 
-def get_prompt_context(image_filename: str) -> str:
-    name = image_filename.lower()
+
+def get_image_specific_guidance(image_filename: str) -> str:
+    name = os.path.basename(image_filename).lower()
     if name.startswith("drawing_"):
-        return (
-            "This is a hand-drawn illustration. "
-            "Do not assume anything beyond what is clearly shown. "
-            "Focus only on visible objects, actions, and scene layout."
-        )
+        return ("For this drawing: Look carefully at all depicted elements. "
+                "If the question asks for a count, provide it. If it asks about an action or state (e.g., open/closed, color), describe that specific observation based *only* on what you see.")
     elif name.startswith("text_"):
         return (
-            "This is a scanned text page. "
-            "Only use visible, legible text. "
-            "Do not guess missing words. If unreadable, say so."
-        )
+            "This image contains text. Your main task is to **read the text carefully and accurately** to find the answer. "
+            "If text is small or slightly unclear, try your best to decipher it. Re-read relevant parts if needed.")
     elif name.startswith("flowchart_"):
         return (
-            "This is a flowchart or diagram. "
-            "Only describe what is visually connected in the layout. "
-            "Focus on arrows, steps, and visible labels. "
-            "Do not speculate on function or meaning beyond the diagram."
-        )
-    return (
-        "Only describe what is clearly shown in the image. "
-        "Do not assume or add context."
-    )
+            "This image is a flowchart. **Trace the connections (lines and arrows) meticulously. Read all text in every box and on every connector.** "
+            "Use this to answer questions about the process or structure shown.")
+    return "Carefully examine all visual details in the image to locate the information needed to answer the question."
 
-def ask_llava(image_path: str, question: str, timeout: int = 30) -> str:
-    filename = os.path.basename(image_path)
-    context = get_prompt_context(filename)
-    prompt = f"![image]({image_path})\n{context}\n{question.strip()}\n"
+
+def ask_llava(image_path: str, question: str, timeout: int = 240) -> str:
+    absolute_image_path = os.path.abspath(image_path)
+    if not os.path.exists(absolute_image_path):
+        return "Error: Image file not found: " + absolute_image_path
+
+    filename = os.path.basename(absolute_image_path)
+    image_guidance = get_image_specific_guidance(filename)
+
+    # "Direct & Re-examine" Prompt
+    prompt_text = f"""![image]({absolute_image_path})
+
+**Task:** Answer the question below.
+
+**Rules:**
+1.  Base your answer **strictly and solely** on the visual information in the image above.
+2.  **Do not guess, assume, or add any information not explicitly depicted.**
+3.  {image_guidance}
+4.  **Before concluding information is missing, please take a second look and re-examine the image carefully.** If, after this careful re-examination, the specific information is genuinely not visible or is completely unreadable, your entire response must be *only* the exact phrase: "Information not visible in image."
+
+**Question:**
+{question.strip()}
+
+**Answer (from image only):**
+"""
 
     try:
         process = subprocess.Popen(
             ["ollama", "run", "llava:7b"],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding='utf-8'
         )
-        stdout, _ = process.communicate(input=prompt.encode("utf-8"), timeout=timeout)
-        response = stdout.decode("utf-8", errors="replace").strip()
+        stdout_data, stderr_data = process.communicate(input=prompt_text, timeout=timeout)
+
+        if process.returncode != 0:
+            error_message = f"Error: Ollama process exited with code {process.returncode}. Stderr: {stderr_data.strip()}"
+            return error_message[:400]
+
+        response = stdout_data.strip()
+
+        uncertainty_message_exact = "Information not visible in image."
+
+        # If the response is *exactly* the uncertainty message, return it as is.
+        if response == uncertainty_message_exact:
+            return uncertainty_message_exact
+
+        common_prefixes = [
+            "Answer (from image only):",  # From our prompt
+            "Answer:",
+            "ANSWER:",
+        ]
+        response_lower = response.lower()
+        for prefix in common_prefixes:
+            if response_lower.startswith(prefix.lower()):
+                response = response[len(prefix):].strip()
+                response_lower = response.lower()
+                break
+
+        # If, after stripping prefixes, the response is exactly the uncertainty message, return it.
+        if response == uncertainty_message_exact:
+            return uncertainty_message_exact
+
         return response.replace('\n\n', '\n')[:400]
     except subprocess.TimeoutExpired:
         process.kill()
-        return "Error: Timeout"
+        return "Error: LLaVA query timed out after " + str(timeout) + " seconds."
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"Error: An exception occurred - {str(e)}"[:400]
 
-def save_response(image_path: str, question: str, answer: str):
-    out_path = os.path.abspath("all_answers.txt")
-    record = {
-        "picture": os.path.basename(image_path),
-        "question": question.strip(),
-        "answer": answer.strip()
-    }
-    with open(out_path, "a", encoding="utf-8") as f:
-        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+def save_response(output_file_path: str, image_filename: str, question: str, answer: str):
+    os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+    escaped_image_filename = os.path.basename(image_filename).replace('"', '\\"')
+    escaped_question = question.strip().replace('"', '\\"')
+    escaped_answer = answer.strip().replace('"', '\\"')
+    entry = (
+        f'picture: "{escaped_image_filename}"\n'
+        f'question: "{escaped_question}"\n'
+        f'answer: "{escaped_answer}"\n\n'
+    )
+    try:
+        with open(output_file_path, "a", encoding="utf-8") as f:
+            f.write(entry)
+    except Exception as e:
+        print(f"Error saving response to {output_file_path}: {e}")
+
 
 def run_batch_on_folder(folder_path: str):
-    image_files = [f for f in os.listdir(folder_path) if f.lower().endswith((".png", ".jpg", ".jpeg"))]
-    out_path = os.path.join(folder_path, "all_answers.txt")
-
-    if os.path.exists(out_path):
-        os.remove(out_path)
-
+    if not os.path.isdir(folder_path):
+        print(f"Error: Folder not found at {folder_path}");
+        return
+    image_files = sorted([f for f in os.listdir(folder_path) if f.lower().endswith((".png", ".jpg", ".jpeg"))])
+    output_file_path = os.path.join(folder_path, "all_answers.txt")
+    if os.path.exists(output_file_path):
+        try:
+            os.remove(output_file_path)
+        except OSError as e:
+            print(f"Warning: Could not remove {output_file_path}. Error: {e}.")
     for image_file in image_files:
-        image_path = os.path.abspath(os.path.join(folder_path, image_file))
-        name = os.path.splitext(image_file)[0]
-        question_file = os.path.join(folder_path, f"{name}.txt")
-
-        if not os.path.exists(question_file):
+        image_full_path = os.path.join(folder_path, image_file)
+        base_name = os.path.splitext(image_file)[0]
+        question_file_path = os.path.join(folder_path, f"{base_name}.txt")
+        if not os.path.exists(question_file_path):
+            print(f"Info: Skipping {image_file} - no matching .txt file.");
             continue
-
-        with open(question_file, "r", encoding="utf-8") as f:
-            questions = f.readlines()
-
-        for question in questions:
-            question = question.strip()
-            if not question:
-                continue
-            answer = ask_llava(image_path, question)
-            save_response(image_path, question, answer)
+        try:
+            with open(question_file_path, "r", encoding="utf-8") as f:
+                questions = f.readlines()
+        except Exception as e:
+            print(f"Error reading {question_file_path}: {e}"); continue
+        print(f"\nProcessing image: {image_file}")
+        for question_text in questions:
+            question_text = question_text.strip()
+            if not question_text: continue
+            print(f"  Asking: {question_text[:70]}...")
+            answer_text = ask_llava(image_full_path, question_text)
+            save_response(output_file_path, image_file, question_text, answer_text)
+            print(f"    -> Answer (first 70 chars): {answer_text[:70].replace(os.linesep, ' ')}")
+    print(f"\nBatch processing complete for {folder_path}. Output: {output_file_path}")
