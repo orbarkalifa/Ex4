@@ -1,0 +1,33 @@
+{"picture": "drawing_Robot Chef in Cozy Kitchen.png", "question": "What is the robot doing in the kitchen?", "answer": "The robot is cooking at the stove—stirring a steaming pot on the burner while also frying eggs in a pan."}
+{"picture": "drawing_Robot Chef in Cozy Kitchen.png", "question": "How many eggs are visible in the frying pan?", "answer": "Two eggs."}
+{"picture": "drawing_Robot Chef in Cozy Kitchen.png", "question": "What utensil is the robot holding?", "answer": "A long-handled wooden spoon."}
+{"picture": "drawing_Robot Chef in Cozy Kitchen.png", "question": "What is the robot cooking in the pot?", "answer": "A steaming soup or stew (a hot, liquid-based dish)."}
+{"picture": "drawing_Robot Chef in Cozy Kitchen.png", "question": "What time did the robot start cooking?", "answer": "Cannot tell—no clock or timestamp is shown."}
+{"picture": "drawing_Robot Chef in Cozy Kitchen.png", "question": "Is the robot smiling or frowning?", "answer": "Expressionless—neither smiling nor frowning."}
+{"picture": "drawing_Robot Chef in Cozy Kitchen.png", "question": "What seasonings can be seen on the counter?", "answer": "Salt and pepper shakers (one jar labeled \"SALT\" and a smaller, darker-topped pepper shaker)."}
+{"picture": "drawing_Robot Chef in Cozy Kitchen.png", "question": "How many mugs are visible on the shelf?", "answer": "Three mugs."}
+{"picture": "drawing_Robot Chef in Cozy Kitchen.png", "question": "Is the window open or closed?", "answer": "Closed."}
+{"picture": "drawing_Robot Chef in Cozy Kitchen.png", "question": "What kind of food is in the frying pan?", "answer": "Two fried eggs."}
+{"picture": "drawing_Robot Chef in Cozy Kitchen.png", "question": "What ingredients did the robot use to make the dish?", "answer": "Eggs and the visible seasonings (salt and likely pepper)."}
+
+{"picture": "text_Helens Summer Afternoon Story.png", "question": "What book was Helen reading?", "answer": "Jane Eyre."}
+{"picture": "text_Helens Summer Afternoon Story.png", "question": "Who wrote the book Helen was reading?", "answer": "Charlotte Brontë."}
+{"picture": "text_Helens Summer Afternoon Story.png", "question": "What was the weather like outside?", "answer": "A hot, sunny July afternoon."}
+{"picture": "text_Helens Summer Afternoon Story.png", "question": "Why was Helen feeling bored?", "answer": "Nothing much was happening outside and her school friends were away on holiday, so she missed them."}
+{"picture": "text_Helens Summer Afternoon Story.png", "question": "Who came to visit Helen?", "answer": "Her cousin (and best friend), Alice."}
+{"picture": "text_Helens Summer Afternoon Story.png", "question": "How did Helen react when the doorbell rang?", "answer": "She jumped up and ran to the door."}
+{"picture": "text_Helens Summer Afternoon Story.png", "question": "What did Alice say when Helen opened the door?", "answer": "I've come to stay with you, if that's all right."}
+{"picture": "text_Helens Summer Afternoon Story.png", "question": "What relation is Alice to Helen?", "answer": "Alice is Helen's cousin (and best friend)."}
+{"picture": "text_Helens Summer Afternoon Story.png", "question": "What time did Alice arrive?", "answer": "Not specified."}
+{"picture": "text_Helens Summer Afternoon Story.png", "question": "What did Helen and Alice do after meeting?", "answer": "No further actions are described in the excerpt."}
+
+{"picture": "flowchart_Bank Loan.png", "question": "What is the first step in the loan application process?", "answer": "Submitting the loan application (\"Loan Application Submitted\" immediately after the \"Start\" node)."}
+{"picture": "flowchart_Bank Loan.png", "question": "What happens if the applicant is not eligible after review?", "answer": "The application is marked \"Application Rejected\", and then the bank checks whether a co-signer is eligible."}
+{"picture": "flowchart_Bank Loan.png", "question": "Is income sufficiency checked before or after credit history evaluation?", "answer": "Income is checked first (\"Income Sufficient?\"), and only afterward does the \"Good Credit History?\" evaluation occur."}
+{"picture": "flowchart_Bank Loan.png", "question": "How long does it take to disburse the funds after approval?", "answer": "The chart doesn’t specify any duration between approval and \"Disburse Funds.\""}
+{"picture": "flowchart_Bank Loan.png", "question": "What happens if the applicant does not have adequate collateral?", "answer": "Even the \"No\" branch from the \"Adequate Collateral?\" decision still feeds into \"Loan Approved.\""}
+{"picture": "flowchart_Bank Loan.png", "question": "Which step comes immediately before 'Loan Approved'?", "answer": "On the main path: the \"Adequate Collateral?\" decision; on the co-signer path: Evaluate Credit History."}
+{"picture": "flowchart_Bank Loan.png", "question": "If a co-signer is required, what step follows?", "answer": "Evaluate Credit History."}
+{"picture": "flowchart_Bank Loan.png", "question": "What is the final step in the process?", "answer": "Disburse Funds."}
+{"picture": "flowchart_Bank Loan.png", "question": "Is there a step where the applicant must sign an agreement?", "answer": "Yes—Sign Agreement just before Disburse Funds."}
+{"picture": "flowchart_Bank Loan.png", "question": "What are the specific income thresholds used to determine sufficiency?", "answer": "None are shown."}
